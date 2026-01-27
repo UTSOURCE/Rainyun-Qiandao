@@ -1,4 +1,4 @@
-# 雨云自动签到 (Docker 版) v2.5
+# 雨云自动签到 (Docker 版) v2.6
 
 雨云每日自动签到工具，支持 ARM / AMD64 平台，Docker 一键部署。
 
@@ -65,7 +65,7 @@ docker-compose up --build
 
 | 变量名 | 必填 | 默认值 | 说明 |
 |--------|------|--------|------|
-| APP_VERSION | ❌ | 2.5 | 日志显示的版本号 |
+| APP_VERSION | ❌ | 2.6 | 日志显示的版本号 |
 | APP_BASE_URL | ❌ | https://app.rainyun.com | 雨云站点地址 |
 | API_BASE_URL | ❌ | https://api.v2.rainyun.com | API 基础地址 |
 | COOKIE_FILE | ❌ | cookies.json | 登录 Cookie 存储文件 |

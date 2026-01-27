@@ -32,15 +32,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装 supercronic（容器定时任务调度器）
-# 使用 dpkg --print-architecture 动态检测架构，兼容所有构建方式
-RUN apt-get update && apt-get install -y --no-install-recommends curl && \
-    ARCH="$(dpkg --print-architecture)" && \
-    echo "检测到架构: ${ARCH}" && \
-    curl -fsSL "https://github.com/aptible/supercronic/releases/download/v0.2.33/supercronic-linux-${ARCH}" \
-         -o /usr/local/bin/supercronic && \
-    chmod +x /usr/local/bin/supercronic && \
-    apt-get purge -y curl && \
-    rm -rf /var/lib/apt/lists/*
+# 使用本地预编译的二进制文件，避免构建时依赖 GitHub
+ARG TARGETARCH
+COPY bin/supercronic-linux-${TARGETARCH} /usr/local/bin/supercronic
+RUN chmod +x /usr/local/bin/supercronic
 
 WORKDIR /app
 

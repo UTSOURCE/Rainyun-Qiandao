@@ -1,29 +1,24 @@
 import io
-import json
 import logging
 import os
 import random
 import re
 import shutil
-import tempfile
 import time
-from dataclasses import dataclass
 
 import cv2
 import ddddocr
 import requests
 from api_client import RainyunAPI
-from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import ActionChains
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.webdriver import WebDriver
-from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.wait import WebDriverWait
 
 from .config import Config, get_default_config
+from .browser.cookies import load_cookies
+from .browser.locators import XPATH_CONFIG
+from .browser.pages import LoginPage, RewardPage
+from .browser.session import BrowserSession, RuntimeContext
 
 # 自定义异常：验证码处理过程中可重试的错误
 class CaptchaRetryableError(Exception):
@@ -66,21 +61,6 @@ string_handler = logging.StreamHandler(log_capture_string)
 string_handler.setFormatter(formatter)
 logger.addHandler(string_handler)
 
-@dataclass
-class RuntimeContext:
-    driver: WebDriver
-    wait: WebDriverWait
-    ocr: ddddocr.DdddOcr
-    det: ddddocr.DdddOcr
-    temp_dir: str
-    api: RainyunAPI
-    config: Config
-
-
-def build_app_url(config: Config, path: str) -> str:
-    return f"{config.app_base_url}/{path.lstrip('/')}"
-
-
 def temp_path(ctx: RuntimeContext, filename: str) -> str:
     return os.path.join(ctx.temp_dir, filename)
 
@@ -92,135 +72,6 @@ def clear_temp_dir(temp_dir: str) -> None:
         file_path = os.path.join(temp_dir, filename)
         if os.path.isfile(file_path) or os.path.islink(file_path):
             os.remove(file_path)
-
-
-def save_cookies(ctx: RuntimeContext):
-    """保存 cookies 到文件"""
-    cookies = ctx.driver.get_cookies()
-    with open(ctx.config.cookie_file, "w") as f:
-        json.dump(cookies, f)
-    logger.info(f"Cookies 已保存到 {ctx.config.cookie_file}")
-
-
-def load_cookies(ctx: RuntimeContext) -> bool:
-    """从文件加载 cookies"""
-    if not os.path.exists(ctx.config.cookie_file):
-        logger.info("未找到 cookies 文件")
-        return False
-    try:
-        with open(ctx.config.cookie_file, "r") as f:
-            cookies = json.load(f)
-        # 先访问域名以便设置 cookie
-        ctx.driver.get(build_app_url(ctx.config, "/"))
-        for cookie in cookies:
-            # 移除可能导致问题的字段
-            cookie.pop("sameSite", None)
-            cookie.pop("expiry", None)
-            try:
-                ctx.driver.add_cookie(cookie)
-            except Exception as e:
-                logger.warning(f"添加 cookie 失败: {e}")
-        logger.info("Cookies 已加载")
-        return True
-    except Exception as e:
-        logger.error(f"加载 cookies 失败: {e}")
-        return False
-
-
-def check_login_status(ctx: RuntimeContext) -> bool:
-    """检查是否已登录"""
-    ctx.driver.get(build_app_url(ctx.config, "/dashboard"))
-    time.sleep(3)
-    # 如果跳转到登录页面，说明 cookie 失效
-    if "login" in ctx.driver.current_url:
-        logger.info("Cookie 已失效，需要重新登录")
-        return False
-    # 检查是否成功加载 dashboard
-    if ctx.driver.current_url == build_app_url(ctx.config, "/dashboard"):
-        logger.info("Cookie 有效，已登录")
-        return True
-    return False
-
-
-# 定位符常量化 (让维护更简单)
-XPATH_CONFIG = {
-    "LOGIN_BTN": "//button[@type='submit' and contains(., '登') and contains(., '录')]",
-    "SIGN_IN_BTN": "//div[contains(@class, 'card-header') and .//span[contains(text(), '每日签到')]]//a[contains(text(), '领取奖励')]",
-    # 验证码相关定位符统一为 (By, selector) 结构，避免 ID/XPath 混用
-    "CAPTCHA_SUBMIT": (By.XPATH, "//div[@id='tcStatus']/div[2]/div[2]/div/div"),
-    "CAPTCHA_RELOAD": (By.ID, "reload"),
-    "CAPTCHA_BG": (By.ID, "slideBg"),
-    "CAPTCHA_OP": (By.ID, "tcOperation"),
-    "CAPTCHA_IMG_INSTRUCTION": (By.XPATH, "//div[@id='instruction']//img")
-}
-
-
-def do_login(ctx: RuntimeContext, user: str, pwd: str) -> bool:
-    """执行登录流程"""
-    logger.info("发起登录请求")
-    ctx.driver.get(build_app_url(ctx.config, "/auth/login"))
-    try:
-        username = ctx.wait.until(EC.visibility_of_element_located((By.NAME, 'login-field')))
-        password = ctx.wait.until(EC.visibility_of_element_located((By.NAME, 'login-password')))
-        # 优化：使用文本和类型定位登录按钮，增强稳定性
-        login_button = ctx.wait.until(EC.visibility_of_element_located((By.XPATH, XPATH_CONFIG["LOGIN_BTN"])))
-        username.send_keys(user)
-        password.send_keys(pwd)
-        login_button.click()
-    except TimeoutException:
-        logger.error("页面加载超时，请尝试延长超时时间或切换到国内网络环境！")
-        return False
-    try:
-        login_captcha = ctx.wait.until(EC.visibility_of_element_located((By.ID, 'tcaptcha_iframe_dy')))
-        logger.warning("触发验证码！")
-        ctx.driver.switch_to.frame("tcaptcha_iframe_dy")
-        if not process_captcha(ctx):
-            logger.error("登录验证码识别失败")
-            return False
-    except TimeoutException:
-        logger.info("未触发验证码")
-    time.sleep(2)  # 给页面一点点缓冲时间
-    ctx.driver.switch_to.default_content()
-    try:
-        # 使用显式等待检测登录是否成功（通过判断 URL 变化）
-        ctx.wait.until(EC.url_contains("dashboard"))
-        logger.info("登录成功！")
-        save_cookies(ctx)
-        return True
-    except TimeoutException:
-        logger.error(f"登录超时或失败！当前 URL: {ctx.driver.current_url}")
-        return False
-
-
-def init_selenium(config: Config, debug: bool, linux: bool) -> WebDriver:
-    ops = Options()
-    ops.add_argument("--no-sandbox")
-    if debug:
-        ops.add_experimental_option("detach", True)
-    if linux:
-        ops.add_argument("--headless")
-        ops.add_argument("--disable-gpu")
-        ops.add_argument("--disable-dev-shm-usage")
-        # 低配模式：适用于 1核1G 小鸡
-        if config.chrome_low_memory:
-            logger.info("启用 Chrome 低内存模式")
-            # 注意：--single-process 在 Docker 容器中容易导致崩溃，不使用
-            ops.add_argument("--disable-extensions")
-            ops.add_argument("--disable-background-networking")
-            ops.add_argument("--disable-sync")
-            ops.add_argument("--disable-translate")
-            ops.add_argument("--disable-default-apps")
-            ops.add_argument("--no-first-run")
-            ops.add_argument("--disable-software-rasterizer")
-            ops.add_argument("--js-flags=--max-old-space-size=256")
-        # 设置 Chromium 二进制路径（支持 ARM 和 AMD64）
-        if config.chrome_bin and os.path.exists(config.chrome_bin):
-            ops.binary_location = config.chrome_bin
-        # 容器环境使用系统 chromedriver
-        if os.path.exists(config.chromedriver_path):
-            return webdriver.Chrome(service=Service(config.chromedriver_path), options=ops)
-        return webdriver.Chrome(service=Service("./chromedriver"), options=ops)
-    return webdriver.Chrome(service=Service("chromedriver.exe"), options=ops)
 
 
 def download_image(url: str, output_path: str, config: Config) -> bool:
@@ -477,6 +328,7 @@ def run():
     temp_dir = None
     debug = False
     config = None
+    session = None
     try:
         config = Config.from_env()
         configure(config)
@@ -518,15 +370,8 @@ def run():
         ocr = ddddocr.DdddOcr(ocr=True, show_ad=False)
         det = ddddocr.DdddOcr(det=True, show_ad=False)
         logger.info("初始化 Selenium")
-        driver = init_selenium(config=config, debug=debug, linux=linux)
-        # 过 Selenium 检测
-        with open("stealth.min.js", mode="r") as f:
-            js = f.read()
-        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-            "source": js
-        })
-        wait = WebDriverWait(driver, timeout)
-        temp_dir = tempfile.mkdtemp(prefix="rainyun-")
+        session = BrowserSession(config=config, debug=debug, linux=linux)
+        driver, wait, temp_dir = session.start()
         ctx = RuntimeContext(
             driver=driver,
             wait=wait,
@@ -537,61 +382,23 @@ def run():
             config=config
         )
 
+        login_page = LoginPage(ctx, captcha_handler=process_captcha)
+        reward_page = RewardPage(ctx, captcha_handler=process_captcha)
+
         # 尝试使用 cookie 登录
         logged_in = False
-        if load_cookies(ctx):
-            logged_in = check_login_status(ctx)
+        if load_cookies(ctx.driver, ctx.config):
+            logged_in = login_page.check_login_status()
 
         # cookie 无效则进行正常登录
         if not logged_in:
-            logged_in = do_login(ctx, user, pwd)
+            logged_in = login_page.login(user, pwd)
 
         if not logged_in:
             logger.error("登录失败，任务终止")
             return
 
-        logger.info("正在转到赚取积分页")
-        ctx.driver.get(build_app_url(ctx.config, "/account/reward/earn"))
-
-        # 检查签到状态：使用 card-header 语义化定位，彻底消除位置依赖
-        try:
-            # 使用显示等待寻找按钮
-            earn = ctx.wait.until(EC.presence_of_element_located((By.XPATH,
-                                       "//div[contains(@class, 'card-header') and .//span[contains(text(), '每日签到')]]//a[contains(text(), '领取奖励')]")))
-            logger.info("点击赚取积分")
-            earn.click()
-        except TimeoutException:
-            # 检查是否已经签到（按钮可能显示"已领取"、"已完成"等）
-            already_signed_patterns = ['已领取', '已完成', '已签到', '明日再来']
-            page_source = ctx.driver.page_source
-            for pattern in already_signed_patterns:
-                if pattern in page_source:
-                    logger.info(f"今日已签到（检测到：{pattern}），跳过签到流程")
-                    # 使用 API 获取最新积分，稳定可靠
-                    try:
-                        current_points = ctx.api.get_user_points()
-                        earned = current_points - start_points
-                        logger.info(f"当前剩余积分: {current_points} (本次获得 {earned} 分) | 约为 {current_points / config.points_to_cny_rate:.2f} 元")
-                    except Exception:
-                        logger.info("无法通过 API 获取当前积分信息")
-                    return
-            # 如果既没找到领取按钮，也没检测到已签到，说明页面结构可能变了
-            raise Exception("未找到签到按钮，且未检测到已签到状态，可能页面结构已变更")
-        logger.info("处理验证码")
-        ctx.driver.switch_to.frame("tcaptcha_iframe_dy")
-        if not process_captcha(ctx):
-            # 失败时尝试记录当前页面源码的关键部分，方便排查
-            logger.error(f"验证码重试次数过多，任务失败。当前页面状态: {ctx.driver.current_url}")
-            raise Exception("验证码识别重试次数过多，签到失败")
-        ctx.driver.switch_to.default_content()
-
-        # 签到成功后，通过 API 刷新积分余额
-        try:
-            current_points = ctx.api.get_user_points()
-            earned = current_points - start_points
-            logger.info(f"当前剩余积分: {current_points} (本次获得 {earned} 分) | 约为 {current_points / config.points_to_cny_rate:.2f} 元")
-        except Exception:
-            logger.info("签到后通过 API 更新积分失败")
+        reward_page.handle_daily_reward(start_points)
         
         logger.info("任务执行成功！")
     except Exception as e:
@@ -601,11 +408,8 @@ def run():
         # === 核心逻辑：无论成功失败，这里都会执行 ===
 
         # 1. 关闭浏览器
-        if driver:
-            try:
-                driver.quit()
-            except Exception:
-                pass
+        if session:
+            session.close()
 
         # 2. 服务器到期检查和自动续费（需要配置 API_KEY）
         server_report = ""

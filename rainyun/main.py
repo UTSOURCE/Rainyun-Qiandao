@@ -294,6 +294,7 @@ def build_match_result(
         return None
     best_positions: list[tuple[int, int] | None] = [None, None, None]
     best_scores: list[float | None] = [None, None, None]
+    valid_specs: list[tuple[tuple[int, int], np.ndarray]] = []
     for bbox in bboxes:
         if len(bbox) != 4:
             continue
@@ -304,13 +305,39 @@ def build_match_result(
         if spec.size == 0:
             continue
         center = (int((x1 + x2) / 2), int((y1 + y2) / 2))
-        for index, sprite in enumerate(sprites):
-            if sprite is None or sprite.size == 0:
+        valid_specs.append((center, spec))
+    if not valid_specs:
+        return None
+    if len(valid_specs) < len(sprites):
+        for center, spec in valid_specs:
+            for index, sprite in enumerate(sprites):
+                if sprite is None or sprite.size == 0:
+                    continue
+                similarity = similarity_fn(sprite, spec)
+                if best_scores[index] is None or similarity > best_scores[index]:
+                    best_scores[index] = similarity
+                    best_positions[index] = center
+    else:
+        candidates: list[tuple[float, int, int]] = []
+        for bbox_index, (center, spec) in enumerate(valid_specs):
+            for sprite_index, sprite in enumerate(sprites):
+                if sprite is None or sprite.size == 0:
+                    continue
+                similarity = similarity_fn(sprite, spec)
+                candidates.append((similarity, sprite_index, bbox_index))
+        candidates.sort(key=lambda item: item[0], reverse=True)
+        used_sprites: set[int] = set()
+        used_bboxes: set[int] = set()
+        for similarity, sprite_index, bbox_index in candidates:
+            if sprite_index in used_sprites or bbox_index in used_bboxes:
                 continue
-            similarity = similarity_fn(sprite, spec)
-            if best_scores[index] is None or similarity > best_scores[index]:
-                best_scores[index] = similarity
-                best_positions[index] = center
+            used_sprites.add(sprite_index)
+            used_bboxes.add(bbox_index)
+            center, _ = valid_specs[bbox_index]
+            best_positions[sprite_index] = center
+            best_scores[sprite_index] = similarity
+            if len(used_sprites) == len(sprites):
+                break
     if any(pos is None for pos in best_positions):
         return None
     return MatchResult(

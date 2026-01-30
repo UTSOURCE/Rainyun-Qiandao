@@ -12,6 +12,7 @@ from .models import (
     build_default_config,
     write_default_config,
 )
+from .store import DataStore
 
 __all__ = [
     "Account",
@@ -24,4 +25,5 @@ __all__ = [
     "DEFAULT_TOKEN_EXPIRES_DAYS",
     "build_default_config",
     "write_default_config",
+    "DataStore",
 ]

@@ -477,12 +477,17 @@ class Config:
                         push_config[key] = value
 
         renew_product_ids = list(getattr(account, "renew_products", []))
+        cookie_file = base.cookie_file
+        account_id = getattr(account, "id", "")
+        if isinstance(account_id, str) and account_id:
+            cookie_file = f"cookies_{account_id}.json"
 
         return replace(
             base,
             rainyun_user=getattr(account, "username", ""),
             rainyun_pwd=getattr(account, "password", ""),
             rainyun_api_key=getattr(account, "api_key", ""),
+            cookie_file=cookie_file,
             auto_renew=auto_renew,
             renew_threshold_days=renew_threshold_days,
             renew_product_ids=renew_product_ids,

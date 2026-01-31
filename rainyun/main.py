@@ -6,6 +6,7 @@ import re
 import shutil
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol, Sequence
 
 import cv2
@@ -17,6 +18,7 @@ from selenium.webdriver import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
 
 from .config import Config, get_default_config
+from .data.store import DataStore
 from .browser.cookies import load_cookies
 from .browser.locators import XPATH_CONFIG
 from .browser.pages import LoginPage, RewardPage
@@ -517,12 +519,14 @@ def check_answer(result: MatchResult) -> bool:
     return True
 
 
-def run_with_config(config: Config) -> None:
+def run_with_config(config: Config) -> bool:
     ctx = None
     driver = None
     temp_dir = None
     debug = False
     session = None
+    log_capture_string.seek(0)
+    log_capture_string.truncate(0)
     try:
         configure(config)
         timeout = config.timeout
@@ -536,7 +540,7 @@ def run_with_config(config: Config) -> None:
         # 检查必要配置
         if not user or not pwd:
             logger.error("请配置账号用户名和密码")
-            return
+            return False
 
         api_key = config.rainyun_api_key
         api_client = RainyunAPI(api_key, config=config)
@@ -589,13 +593,15 @@ def run_with_config(config: Config) -> None:
 
         if not logged_in:
             logger.error("登录失败，任务终止")
-            return
+            return False
 
         reward_page.handle_daily_reward(start_points)
         
         logger.info("任务执行成功！")
+        return True
     except Exception as e:
         logger.error(f"脚本执行异常终止: {e}")
+        return False
 
     finally:
         # === 核心逻辑：无论成功失败，这里都会执行 ===
@@ -633,14 +639,28 @@ def run_with_config(config: Config) -> None:
         send("雨云签到", log_content + server_report)
 
         # 5. 释放内存
-        log_capture_string.close()
         if temp_dir and not debug:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 def run() -> None:
-    config = Config.from_env()
-    run_with_config(config)
+    store = DataStore()
+    data = store.load()
+    if not data.accounts:
+        logger.error("未配置任何账户，请先在 Web 面板中添加账户")
+        return
+
+    for account in data.accounts:
+        if not account.enabled:
+            continue
+        config = Config.from_account(account, data.settings)
+        success = run_with_config(config)
+        account.last_checkin = datetime.now().isoformat()
+        account.last_status = "success" if success else "failed"
+        try:
+            store.update_account(account)
+        except Exception as exc:
+            logger.error("回写账户状态失败: %s", exc)
 
 
 if __name__ == "__main__":

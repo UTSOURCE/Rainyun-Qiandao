@@ -41,9 +41,19 @@
             <h2>账户与任务</h2>
             <p>管理启用账号、续费白名单与签到操作。</p>
           </div>
-          <button id="checkin-btn" class="primary-btn">一键签到</button>
+          <div class="panel-actions">
+            <button id="checkin-btn" class="primary-btn">一键签到</button>
+            <button id="renew-btn" class="secondary-btn">一键续费</button>
+          </div>
         </div>
-        <div class="panel-body grid">
+
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="main">任务</button>
+          <button class="tab-btn" data-tab="logs">日志</button>
+        </div>
+
+        <div id="tab-main" class="tab-content">
+          <div class="panel-body grid">
           <div class="card">
             <div class="card-header">
               <h3>账户列表</h3>
@@ -65,12 +75,15 @@
             </div>
           </div>
 
-          <div class="card">
+          <div class="card" id="account-form-card">
             <div class="card-header">
               <h3 id="account-form-title">新增账户</h3>
-              <button id="reset-form" class="ghost-btn">清空</button>
+              <div class="card-actions">
+                <button id="toggle-account-form" class="ghost-btn">添加新账户</button>
+                <button id="reset-form" class="ghost-btn hidden">清空</button>
+              </div>
             </div>
-            <div class="form-grid">
+            <div id="account-form-body" class="form-grid hidden">
               <label class="field">
                 <span>账户名称</span>
                 <input id="account-name" placeholder="主账号 / 副账号" />
@@ -98,90 +111,123 @@
               <button id="save-account" class="primary-btn full">保存账户</button>
             </div>
           </div>
-        </div>
+          </div>
 
-        <div class="panel-body settings">
-          <div class="card">
-            <div class="card-header">
-              <h3>系统设置</h3>
+          <div class="panel-body settings">
+            <div class="card">
+              <div class="card-header">
+                <h3>系统设置</h3>
+              </div>
+              <div class="form-grid">
+                <label class="field checkbox">
+                  <input id="setting-auto-renew" type="checkbox" />
+                  <span>自动续费</span>
+                </label>
+                <label class="field">
+                  <span>续费阈值（天）</span>
+                  <input id="setting-renew-days" type="number" min="1" />
+                </label>
+                <label class="field full">
+                  <span>定时规则</span>
+                  <div class="cron-builder">
+                    <div class="cron-row">
+                      <select id="cron-mode" class="cron-mode"></select>
+                      <select id="cron-hour" class="cron-field"></select>
+                      <select id="cron-minute" class="cron-field"></select>
+                      <select id="cron-weekday" class="cron-field"></select>
+                      <select id="cron-monthday" class="cron-field"></select>
+                    </div>
+                    <input id="setting-cron" class="cron-raw hidden" placeholder="0 8 * * *" />
+                    <div class="cron-preview">
+                      <span>表达式</span>
+                      <code id="cron-preview">0 8 * * *</code>
+                      <div id="cron-next" class="cron-next"></div>
+                    </div>
+                  </div>
+                </label>
+                <button id="save-settings" class="primary-btn full">保存设置</button>
+              </div>
             </div>
-            <div class="form-grid">
-              <label class="field checkbox">
-                <input id="setting-auto-renew" type="checkbox" />
-                <span>自动续费</span>
-              </label>
-              <label class="field">
-                <span>续费阈值（天）</span>
-                <input id="setting-renew-days" type="number" min="1" />
-              </label>
-              <label class="field">
-                <span>定时表达式</span>
-                <input id="setting-cron" placeholder="0 8 * * *" />
-              </label>
-              <button id="save-settings" class="primary-btn full">保存设置</button>
+            <div class="card">
+              <div class="card-header">
+                <h3>高级设置</h3>
+              </div>
+              <div class="form-grid">
+                <label class="field">
+                  <span>页面超时（秒）</span>
+                  <input id="setting-timeout" type="number" min="1" />
+                </label>
+                <label class="field">
+                  <span>随机延时上限（分钟）</span>
+                  <input id="setting-max-delay" type="number" min="0" />
+                </label>
+                <label class="field checkbox">
+                  <input id="setting-debug" type="checkbox" />
+                  <span>调试模式（跳过延时）</span>
+                </label>
+                <label class="field">
+                  <span>请求超时（秒）</span>
+                  <input id="setting-request-timeout" type="number" min="1" />
+                </label>
+                <label class="field">
+                  <span>请求重试次数</span>
+                  <input id="setting-max-retries" type="number" min="0" />
+                </label>
+                <label class="field">
+                  <span>请求重试间隔（秒）</span>
+                  <input id="setting-retry-delay" type="number" min="0" step="0.5" />
+                </label>
+                <label class="field">
+                  <span>下载超时（秒）</span>
+                  <input id="setting-download-timeout" type="number" min="1" />
+                </label>
+                <label class="field">
+                  <span>下载重试次数</span>
+                  <input id="setting-download-max-retries" type="number" min="0" />
+                </label>
+                <label class="field">
+                  <span>下载重试间隔（秒）</span>
+                  <input id="setting-download-retry-delay" type="number" min="0" step="0.5" />
+                </label>
+                <label class="field">
+                  <span>验证码重试次数</span>
+                  <input id="setting-captcha-retry-limit" type="number" min="0" />
+                </label>
+                <label class="field checkbox">
+                  <input id="setting-captcha-retry-unlimited" type="checkbox" />
+                  <span>验证码无限重试</span>
+                </label>
+                <label class="field checkbox">
+                  <input id="setting-captcha-save-samples" type="checkbox" />
+                  <span>保存验证码样本</span>
+                </label>
+                <label class="field full">
+                  <span>跳过推送标题（换行分隔）</span>
+                  <textarea id="setting-skip-push-title" rows="3"></textarea>
+                </label>
+                <label class="field full">
+                  <span>通知配置 JSON（notify_config）</span>
+                  <textarea id="setting-notify-config" rows="6" placeholder="{ }"></textarea>
+                </label>
+              </div>
             </div>
           </div>
-          <div class="card">
-            <div class="card-header">
-              <h3>高级设置</h3>
-            </div>
-            <div class="form-grid">
-              <label class="field">
-                <span>页面超时（秒）</span>
-                <input id="setting-timeout" type="number" min="1" />
-              </label>
-              <label class="field">
-                <span>随机延时上限（分钟）</span>
-                <input id="setting-max-delay" type="number" min="0" />
-              </label>
-              <label class="field checkbox">
-                <input id="setting-debug" type="checkbox" />
-                <span>调试模式（跳过延时）</span>
-              </label>
-              <label class="field">
-                <span>请求超时（秒）</span>
-                <input id="setting-request-timeout" type="number" min="1" />
-              </label>
-              <label class="field">
-                <span>请求重试次数</span>
-                <input id="setting-max-retries" type="number" min="0" />
-              </label>
-              <label class="field">
-                <span>请求重试间隔（秒）</span>
-                <input id="setting-retry-delay" type="number" min="0" step="0.5" />
-              </label>
-              <label class="field">
-                <span>下载超时（秒）</span>
-                <input id="setting-download-timeout" type="number" min="1" />
-              </label>
-              <label class="field">
-                <span>下载重试次数</span>
-                <input id="setting-download-max-retries" type="number" min="0" />
-              </label>
-              <label class="field">
-                <span>下载重试间隔（秒）</span>
-                <input id="setting-download-retry-delay" type="number" min="0" step="0.5" />
-              </label>
-              <label class="field">
-                <span>验证码重试次数</span>
-                <input id="setting-captcha-retry-limit" type="number" min="0" />
-              </label>
-              <label class="field checkbox">
-                <input id="setting-captcha-retry-unlimited" type="checkbox" />
-                <span>验证码无限重试</span>
-              </label>
-              <label class="field checkbox">
-                <input id="setting-captcha-save-samples" type="checkbox" />
-                <span>保存验证码样本</span>
-              </label>
-              <label class="field full">
-                <span>跳过推送标题（换行分隔）</span>
-                <textarea id="setting-skip-push-title" rows="3"></textarea>
-              </label>
-              <label class="field full">
-                <span>通知配置 JSON（notify_config）</span>
-                <textarea id="setting-notify-config" rows="6" placeholder="{ }"></textarea>
-              </label>
+        </div>
+
+        <div id="tab-logs" class="tab-content hidden">
+          <div class="panel-body">
+            <div class="card">
+              <div class="card-header">
+                <h3>实时日志</h3>
+                <div class="card-actions">
+                  <label class="field checkbox small">
+                    <input id="log-auto-refresh" type="checkbox" checked />
+                    <span>自动刷新</span>
+                  </label>
+                  <button id="refresh-logs" class="ghost-btn">刷新</button>
+                </div>
+              </div>
+              <pre id="log-output" class="log-output"></pre>
             </div>
           </div>
         </div>

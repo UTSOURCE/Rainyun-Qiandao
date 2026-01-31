@@ -289,7 +289,7 @@ class Config:
 
         app_base_url = _read_str(env, "APP_BASE_URL", "https://app.rainyun.com").rstrip("/")
         api_base_url = _read_str(env, "API_BASE_URL", "https://api.v2.rainyun.com").rstrip("/")
-        app_version = _read_str(env, "APP_VERSION", "2.7")
+        app_version = _read_str(env, "APP_VERSION", "3.0")
         cookie_file = _read_str(env, "COOKIE_FILE", "data/cookies/cookies.json")
 
         points_to_cny_rate = 2000

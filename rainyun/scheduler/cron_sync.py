@@ -7,6 +7,7 @@ import os
 import sys
 
 from rainyun.data.store import DataStore
+from rainyun.web.logs import ensure_file_handler
 from rainyun.scheduler.cron import write_cron_file
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 def main() -> int:
     logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
+    ensure_file_handler()
     try:
         store = DataStore()
         data = store.load()

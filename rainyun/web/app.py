@@ -11,11 +11,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 
 from rainyun.web.errors import ApiError
+from rainyun.web.logs import init_log_buffer
 from rainyun.web.responses import error_response
 from rainyun.web.routes import (
     accounts_router,
     actions_router,
     auth_router,
+    logs_router,
     servers_router,
     system_router,
 )
@@ -24,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
+    init_log_buffer()
     app = FastAPI(title="Rainyun Web API")
 
     @app.exception_handler(ApiError)
@@ -42,6 +45,7 @@ def create_app() -> FastAPI:
     app.include_router(servers_router)
     app.include_router(system_router)
     app.include_router(actions_router)
+    app.include_router(logs_router)
 
     static_dir = Path(__file__).resolve().parent / "static"
     if static_dir.exists():

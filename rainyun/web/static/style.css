@@ -126,6 +126,12 @@ h1 {
   margin-bottom: 20px;
 }
 
+.panel-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .panel-body {
   display: flex;
   flex-direction: column;
@@ -217,6 +223,16 @@ h1 {
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
+.secondary-btn {
+  border: none;
+  background: linear-gradient(120deg, var(--accent), #7be5bd);
+  color: #0f1a16;
+  padding: 10px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
 .primary-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 8px 24px rgba(255, 139, 61, 0.3);
@@ -235,12 +251,107 @@ h1 {
   cursor: pointer;
 }
 
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 10px;
+  margin: 8px 0 18px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 16px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  color: var(--text);
+  border-color: rgba(255, 139, 61, 0.6);
+  box-shadow: 0 0 0 2px rgba(255, 139, 61, 0.15);
+}
+
+.tab-content.hidden {
+  display: none;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.field.checkbox.small {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .hidden {
   display: none !important;
 }
 
 .table-wrap {
   overflow-x: auto;
+}
+
+.cron-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cron-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cron-row select,
+.cron-raw {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid transparent;
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 12px;
+}
+
+.cron-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.cron-preview code {
+  color: var(--text);
+}
+
+.cron-next {
+  color: var(--muted);
+}
+
+.log-output {
+  background: #0b1016;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  min-height: 260px;
+  max-height: 420px;
+  overflow: auto;
+  font-size: 12px;
+  color: var(--text);
+  white-space: pre-wrap;
 }
 
 table {

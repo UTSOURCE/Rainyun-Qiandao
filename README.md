@@ -73,6 +73,16 @@ http://localhost:8000
 Cookies 存储：`data/cookies/`  
 建议将 `./data` 挂载为 volume，避免容器重建丢失配置。
 
+## 致谢
+
+本项目基于以下仓库二次开发：
+
+| 版本 | 作者 | 仓库 | 说明 |
+|------|------|------|------|
+| 原版 | SerendipityR | https://github.com/SerendipityR-2022/Rainyun-Qiandao | 初始 Python 版本 |
+| 二改 | fatekey | https://github.com/fatekey/Rainyun-Qiandao | Docker 化改造 |
+| 三改 | Jielumoon | 本仓库 | Web面板+稳定性优化 + 自动续费 |
+
 ## 常见问题
 
 ### 一键签到报 “Unable to obtain driver for chrome”
@@ -86,7 +96,6 @@ CHROMEDRIVER_PATH=/usr/bin/chromedriver
 每个账号独立保存：`data/cookies/cookies_<account_id>.json`  
 若账号未设置 ID，会用账号名/用户名哈希作为文件名。
 
-如果你有旧的 `cookies.json`，请手动移动到 `data/cookies/` 目录。
 
 ### 修改 Web 设置后不生效
 Web 设置会直接写入 `data/config.json`，无需重启容器。 

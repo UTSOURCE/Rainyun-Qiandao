@@ -7,6 +7,7 @@ import os
 import sys
 
 from rainyun.data.store import DataStore
+from rainyun.web.logs import ensure_file_handler
 from rainyun.scheduler.runner import MultiAccountRunner
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,7 @@ def _acquire_lock(lock_path: str) -> int | None:
 
 def main() -> int:
     logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
+    ensure_file_handler()
     lock_path = os.environ.get("CRON_LOCK_PATH", "/tmp/rainyun-cron.lock")
     fd = _acquire_lock(lock_path)
     if fd is None:

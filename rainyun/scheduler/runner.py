@@ -42,15 +42,9 @@ class MultiAccountRunner:
     def __init__(self, store: DataStore) -> None:
         self.store = store
 
-    def run(self) -> list[AccountRunResult]:
-        data = self.store.load() if self.store.data is None else self.store.data
-        if not data.accounts:
-            logger.info("未配置任何账户，跳过多账户调度")
-            return []
-
+    def _build_base_config(self, settings: Any) -> Config:
         base_config = Config.from_env(os.environ)
-        settings = data.settings
-        base_config = replace(
+        return replace(
             base_config,
             timeout=getattr(settings, "timeout", base_config.timeout),
             max_delay=getattr(settings, "max_delay", base_config.max_delay),
@@ -67,10 +61,27 @@ class MultiAccountRunner:
             ),
             captcha_save_samples=getattr(settings, "captcha_save_samples", base_config.captcha_save_samples),
         )
+
+    def _create_session(self, settings: Any):
+        base_config = self._build_base_config(settings)
         session = BrowserSession(base_config, debug=base_config.debug, linux=base_config.linux_mode)
         driver, wait, temp_dir = session.start()
         ocr = ddddocr.DdddOcr(ocr=True, show_ad=False)
         det = ddddocr.DdddOcr(det=True, show_ad=False)
+        return base_config, session, driver, wait, temp_dir, ocr, det
+
+    def _close_session(self, session: BrowserSession, temp_dir: str | None, base_config: Config) -> None:
+        session.close()
+        if temp_dir and not base_config.debug:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    def run(self) -> list[AccountRunResult]:
+        data = self.store.load() if self.store.data is None else self.store.data
+        if not data.accounts:
+            logger.info("未配置任何账户，跳过多账户调度")
+            return []
+
+        base_config, session, driver, wait, temp_dir, ocr, det = self._create_session(data.settings)
 
         results: list[AccountRunResult] = []
         try:
@@ -89,10 +100,27 @@ class MultiAccountRunner:
                     )
                 )
         finally:
-            session.close()
-            if temp_dir and not base_config.debug:
-                shutil.rmtree(temp_dir, ignore_errors=True)
+            self._close_session(session, temp_dir, base_config)
         return results
+
+    def run_for_account(self, account_id: str) -> AccountRunResult | None:
+        data = self.store.load() if self.store.data is None else self.store.data
+        account = next((item for item in data.accounts if item.id == account_id), None)
+        if not account:
+            return None
+        base_config, session, driver, wait, temp_dir, ocr, det = self._create_session(data.settings)
+        try:
+            return self._run_single_account(
+                account=account,
+                settings=data.settings,
+                driver=driver,
+                wait=wait,
+                ocr=ocr,
+                det=det,
+                temp_dir=temp_dir,
+            )
+        finally:
+            self._close_session(session, temp_dir, base_config)
 
     def _run_single_account(
         self,

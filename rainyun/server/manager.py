@@ -213,6 +213,10 @@ class ServerManager:
                     warning = self._attempt_auto_renew(server, result, server_status)
                     if warning:
                         result["warnings"].append(warning)
+                else:
+                    logger.info(
+                        f"{server.name} 剩余 {server.days_remaining} 天，未达到续费阈值 {self.renew_threshold} 天，跳过续费"
+                    )
 
                 result["servers"].append(server_status)
 

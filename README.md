@@ -17,7 +17,7 @@
 cp .env.example .env
 
 # 2. 构建并启动（Web + 定时）
-docker compose -f docker-compose.yml -f docker-compose.cron.yml up -d --build
+docker compose up -d --build
 ```
 
 打开浏览器访问：
@@ -62,7 +62,7 @@ http://localhost:8000
 | WEB_HOST | 0.0.0.0 | Web 绑定地址 |
 | WEB_PORT | 8000 | Web 端口 |
 | DATA_PATH | data/config.json | 数据文件路径 |
-| CRON_MODE | false | 定时模式开关（使用 cron compose 会自动启用） |
+| CRON_MODE | true | 定时模式开关（默认开启） |
 | CHROME_BIN | /usr/bin/chromium | Chromium 路径 |
 | CHROMEDRIVER_PATH | /usr/bin/chromedriver | chromedriver 路径 |
 | CHROME_LOW_MEMORY | false | 低内存模式 |
@@ -70,6 +70,7 @@ http://localhost:8000
 ## 数据与备份
 
 默认数据文件：`data/config.json`  
+Cookies 存储：`data/cookies/`  
 建议将 `./data` 挂载为 volume，避免容器重建丢失配置。
 
 ## 常见问题
@@ -81,5 +82,11 @@ CHROME_BIN=/usr/bin/chromium
 CHROMEDRIVER_PATH=/usr/bin/chromedriver
 ```
 
+### cookies 在哪里
+每个账号独立保存：`data/cookies/cookies_<account_id>.json`  
+若账号未设置 ID，会用账号名/用户名哈希作为文件名。
+
+如果你有旧的 `cookies.json`，请手动移动到 `data/cookies/` 目录。
+
 ### 修改 Web 设置后不生效
-Web 设置会直接写入 `data/config.json`，无需重启容器。  
+Web 设置会直接写入 `data/config.json`，无需重启容器。 

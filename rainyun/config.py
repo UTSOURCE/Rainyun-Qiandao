@@ -1,5 +1,6 @@
 """配置定义与解析。"""
 
+import hashlib
 import logging
 import os
 from dataclasses import dataclass, field, replace
@@ -501,12 +502,20 @@ class Config:
 
         renew_product_ids = list(getattr(account, "renew_products", []))
         cookie_file = base.cookie_file
+        cookie_dir = os.path.dirname(cookie_file)
+        if not cookie_dir:
+            cookie_dir = "."
         account_id = getattr(account, "id", "")
-        if isinstance(account_id, str) and account_id:
-            cookie_dir = os.path.dirname(cookie_file)
-            if not cookie_dir:
-                cookie_dir = "."
-            cookie_file = os.path.join(cookie_dir, f"cookies_{account_id}.json")
+        account_key = str(account_id).strip() if account_id is not None else ""
+        if not account_key:
+            username = str(getattr(account, "username", "") or "").strip()
+            name = str(getattr(account, "name", "") or "").strip()
+            identity = username or name
+            if identity:
+                account_key = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:10]
+            else:
+                account_key = "default"
+        cookie_file = os.path.join(cookie_dir, f"cookies_{account_key}.json")
 
         return replace(
             base,

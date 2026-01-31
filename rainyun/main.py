@@ -7,6 +7,7 @@ import shutil
 import time
 from dataclasses import dataclass
 from datetime import datetime
+from itertools import combinations, permutations
 from typing import Protocol, Sequence
 
 import cv2
@@ -320,26 +321,36 @@ def build_match_result(
                     best_scores[index] = similarity
                     best_positions[index] = center
     else:
-        candidates: list[tuple[float, int, int]] = []
-        for bbox_index, (center, spec) in enumerate(valid_specs):
-            for sprite_index, sprite in enumerate(sprites):
+        sim_matrix: list[list[float]] = []
+        for sprite in sprites:
+            row: list[float] = []
+            for _, spec in valid_specs:
                 if sprite is None or sprite.size == 0:
+                    row.append(0.0)
                     continue
-                similarity = similarity_fn(sprite, spec)
-                candidates.append((similarity, sprite_index, bbox_index))
-        candidates.sort(key=lambda item: item[0], reverse=True)
-        used_sprites: set[int] = set()
-        used_bboxes: set[int] = set()
-        for similarity, sprite_index, bbox_index in candidates:
-            if sprite_index in used_sprites or bbox_index in used_bboxes:
-                continue
-            used_sprites.add(sprite_index)
-            used_bboxes.add(bbox_index)
-            center, _ = valid_specs[bbox_index]
-            best_positions[sprite_index] = center
-            best_scores[sprite_index] = similarity
-            if len(used_sprites) == len(sprites):
-                break
+                row.append(similarity_fn(sprite, spec))
+            sim_matrix.append(row)
+
+        best_perm: tuple[int, ...] | None = None
+        best_scores_local: list[float] | None = None
+        best_key: tuple[float, float, float] | None = None
+        bbox_indices = range(len(valid_specs))
+        for chosen in combinations(bbox_indices, len(sprites)):
+            for perm in permutations(chosen):
+                scores = [sim_matrix[i][perm[i]] for i in range(len(sprites))]
+                min_score = min(scores)
+                avg_score = sum(scores) / len(scores)
+                sum_score = sum(scores)
+                key = (min_score, avg_score, sum_score)
+                if best_key is None or key > best_key:
+                    best_key = key
+                    best_perm = perm
+                    best_scores_local = scores
+        if best_perm is not None and best_scores_local is not None:
+            for sprite_index, bbox_index in enumerate(best_perm):
+                center, _ = valid_specs[bbox_index]
+                best_positions[sprite_index] = center
+                best_scores[sprite_index] = best_scores_local[sprite_index]
     if any(pos is None for pos in best_positions):
         return None
     return MatchResult(
@@ -506,7 +517,7 @@ def check_captcha(ctx: RuntimeContext, captcha_image: np.ndarray, sprites: list[
 
 
 # 检查是否存在重复坐标,快速判断识别错误
-def check_answer(result: MatchResult) -> bool:
+def check_answer(result: MatchResult, min_similarity: float = 0.25) -> bool:
     if not result.positions or len(result.positions) < 3:
         logger.warning(f"验证码识别坐标不足，当前仅有 {len(result.positions) if result.positions else 0} 个")
         return False
@@ -515,6 +526,10 @@ def check_answer(result: MatchResult) -> bool:
         return False
     if len(result.positions) != len(set(result.positions)):
         logger.warning(f"验证码识别坐标重复: {result.positions}")
+        return False
+    min_match = min(result.similarities) if result.similarities else 0.0
+    if min_match < min_similarity:
+        logger.warning(f"验证码最低匹配率 {min_match:.4f} 低于阈值 {min_similarity:.2f}，放弃提交")
         return False
     return True
 

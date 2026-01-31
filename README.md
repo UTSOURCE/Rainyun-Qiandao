@@ -16,7 +16,7 @@
 # 1. 准备环境变量
 cp .env.example .env
 
-# 2. 构建并启动（Web + 定时）
+# 2. 构建并启动
 docker compose up -d --build
 ```
 
@@ -39,18 +39,10 @@ http://localhost:8000
 - 定时表达式（cron），保存后自动写入 `/etc/cron.d/rainyun`
 
 ### 高级设置（建议）
-- 通知配置（`notify_config` JSON）
+- 通知渠道（`notify_channels` 数组，支持多通道）
 - 跳过推送标题（换行分隔）
 - 超时/重试/验证码/下载策略
 
-通知配置示例：
-```json
-{
-  "PUSH_KEY": "xxx",
-  "TG_BOT_TOKEN": "xxx",
-  "TG_USER_ID": "123456"
-}
-```
 
 ## 环境变量（仅运行层）
 
@@ -73,6 +65,26 @@ http://localhost:8000
 Cookies 存储：`data/cookies/`  
 建议将 `./data` 挂载为 volume，避免容器重建丢失配置。
 
+## 项目结构
+
+```
+rainyun/
+├── web/              # FastAPI Web 面板与 API
+│   ├── routes/       # 账户/服务器/系统设置/日志等接口
+│   └── static/       # 前端页面（HTML/JS/CSS）
+├── scheduler/        # 定时任务（cron 执行/多账户运行器）
+├── browser/          # Selenium 浏览器（登录/签到/验证码）
+├── notify/           # 多渠道通知（20+ 推送通道）
+├── server/           # 服务器管理与自动续费
+├── data/             # 数据模型与存储（Account/Settings）
+└── api/              # 雨云 API 客户端封装
+```
+
+核心流程：
+1. **定时任务**：cron 触发 → `scheduler/cron_runner.py` → 执行签到 + 续费 → 推送通知
+2. **账号隔离**：每个账号独立 cookie 文件（`cookies_<id>.json`）
+3. **通知渠道**：支持同时配置多个推送渠道（Server酱/TG/Bark等）
+
 ## 致谢
 
 本项目基于以下仓库二次开发：
@@ -81,7 +93,7 @@ Cookies 存储：`data/cookies/`
 |------|------|------|------|
 | 原版 | SerendipityR | https://github.com/SerendipityR-2022/Rainyun-Qiandao | 初始 Python 版本 |
 | 二改 | fatekey | https://github.com/fatekey/Rainyun-Qiandao | Docker 化改造 |
-| 三改 | Jielumoon | 本仓库 | Web面板+稳定性优化 + 自动续费 |
+| 三改 | Jielumoon | 本仓库 | Web面板+多通知渠道+稳定性优化+自动续费 |
 
 ## 常见问题
 

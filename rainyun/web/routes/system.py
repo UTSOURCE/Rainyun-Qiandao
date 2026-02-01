@@ -9,7 +9,6 @@ from fastapi import APIRouter, Body, Depends
 from rainyun.data.models import Settings
 from rainyun.data.store import DataStore
 from rainyun.notify import send
-from rainyun.notify.channels import _as_bool, one
 from rainyun.notify.registry import DEFAULT_REGISTRY
 from rainyun.scheduler.cron import normalize_schedule, write_cron_file
 from rainyun.web.deps import get_store, require_auth
@@ -80,7 +79,5 @@ def test_notify(payload: dict = Body(default_factory=dict), store: DataStore = D
     if not notifiers:
         raise ApiError("通知配置无效，未命中任何渠道", status_code=400)
     content = "这是一条测试通知"
-    if _as_bool(config.get("HITOKOTO"), default=True):
-        content += "\n\n" + one()
     send("雨云通知测试", content, ignore_default_config=True, **config)
     return success_response({"sent": True, "channels": [n.name for n in notifiers]})

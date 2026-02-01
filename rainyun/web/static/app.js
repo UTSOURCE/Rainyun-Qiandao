@@ -68,7 +68,75 @@ const notifyTgUser = document.getElementById("notify-tg-user");
 const notifyTgHost = document.getElementById("notify-tg-host");
 const notifyPushPlusToken = document.getElementById("notify-pushplus-token");
 const notifyPushPlusUser = document.getElementById("notify-pushplus-user");
+const notifyPushPlusTemplate = document.getElementById("notify-pushplus-template");
+const notifyPushPlusChannel = document.getElementById("notify-pushplus-channel");
+const notifyPushPlusWebhook = document.getElementById("notify-pushplus-webhook");
+const notifyPushPlusCallback = document.getElementById("notify-pushplus-callback");
+const notifyPushPlusTo = document.getElementById("notify-pushplus-to");
 const notifyBarkPush = document.getElementById("notify-bark-push");
+const notifyBarkArchive = document.getElementById("notify-bark-archive");
+const notifyBarkGroup = document.getElementById("notify-bark-group");
+const notifyBarkSound = document.getElementById("notify-bark-sound");
+const notifyBarkIcon = document.getElementById("notify-bark-icon");
+const notifyBarkLevel = document.getElementById("notify-bark-level");
+const notifyBarkUrl = document.getElementById("notify-bark-url");
+const notifyTgProxyHost = document.getElementById("notify-tg-proxy-host");
+const notifyTgProxyPort = document.getElementById("notify-tg-proxy-port");
+const notifyTgProxyAuth = document.getElementById("notify-tg-proxy-auth");
+const notifyDdToken = document.getElementById("notify-dd-token");
+const notifyDdSecret = document.getElementById("notify-dd-secret");
+const notifyFsKey = document.getElementById("notify-fs-key");
+const notifyFsSecret = document.getElementById("notify-fs-secret");
+const notifyGobotUrl = document.getElementById("notify-gobot-url");
+const notifyGobotQq = document.getElementById("notify-gobot-qq");
+const notifyGobotToken = document.getElementById("notify-gobot-token");
+const notifyGotifyUrl = document.getElementById("notify-gotify-url");
+const notifyGotifyToken = document.getElementById("notify-gotify-token");
+const notifyGotifyPriority = document.getElementById("notify-gotify-priority");
+const notifyIgotKey = document.getElementById("notify-igot-key");
+const notifyDeerKey = document.getElementById("notify-deer-key");
+const notifyDeerUrl = document.getElementById("notify-deer-url");
+const notifyChatUrl = document.getElementById("notify-chat-url");
+const notifyChatToken = document.getElementById("notify-chat-token");
+const notifyWeplusToken = document.getElementById("notify-weplus-token");
+const notifyWeplusReceiver = document.getElementById("notify-weplus-receiver");
+const notifyWeplusVersion = document.getElementById("notify-weplus-version");
+const notifyQmsgKey = document.getElementById("notify-qmsg-key");
+const notifyQmsgType = document.getElementById("notify-qmsg-type");
+const notifyWecomAm = document.getElementById("notify-wecom-am");
+const notifyWecomOrigin = document.getElementById("notify-wecom-origin");
+const notifyWecomKey = document.getElementById("notify-wecom-key");
+const notifyWecomBotOrigin = document.getElementById("notify-wecom-bot-origin");
+const notifyAibotkKey = document.getElementById("notify-aibotk-key");
+const notifyAibotkType = document.getElementById("notify-aibotk-type");
+const notifyAibotkName = document.getElementById("notify-aibotk-name");
+const notifySmtpServer = document.getElementById("notify-smtp-server");
+const notifySmtpSsl = document.getElementById("notify-smtp-ssl");
+const notifySmtpEmail = document.getElementById("notify-smtp-email");
+const notifySmtpPassword = document.getElementById("notify-smtp-password");
+const notifySmtpName = document.getElementById("notify-smtp-name");
+const notifyPushmeKey = document.getElementById("notify-pushme-key");
+const notifyPushmeUrl = document.getElementById("notify-pushme-url");
+const notifyPushmeDate = document.getElementById("notify-pushme-date");
+const notifyPushmeType = document.getElementById("notify-pushme-type");
+const notifyChronocatUrl = document.getElementById("notify-chronocat-url");
+const notifyChronocatToken = document.getElementById("notify-chronocat-token");
+const notifyChronocatQq = document.getElementById("notify-chronocat-qq");
+const notifyNtfyUrl = document.getElementById("notify-ntfy-url");
+const notifyNtfyTopic = document.getElementById("notify-ntfy-topic");
+const notifyNtfyPriority = document.getElementById("notify-ntfy-priority");
+const notifyNtfyToken = document.getElementById("notify-ntfy-token");
+const notifyNtfyUsername = document.getElementById("notify-ntfy-username");
+const notifyNtfyPassword = document.getElementById("notify-ntfy-password");
+const notifyNtfyActions = document.getElementById("notify-ntfy-actions");
+const notifyWxpusherToken = document.getElementById("notify-wxpusher-token");
+const notifyWxpusherTopic = document.getElementById("notify-wxpusher-topic");
+const notifyWxpusherUids = document.getElementById("notify-wxpusher-uids");
+const notifyWebhookUrl = document.getElementById("notify-webhook-url");
+const notifyWebhookMethod = document.getElementById("notify-webhook-method");
+const notifyWebhookContentType = document.getElementById("notify-webhook-content-type");
+const notifyWebhookHeaders = document.getElementById("notify-webhook-headers");
+const notifyWebhookBody = document.getElementById("notify-webhook-body");
 const notifyCustomConfig = document.getElementById("notify-custom-config");
 const saveNotifyBtn = document.getElementById("save-notify");
 const cancelNotifyBtn = document.getElementById("cancel-notify");
@@ -78,6 +146,7 @@ let editingNotifyId = null;
 let notifyChannels = [];
 let savingSettings = false;
 let logTimer = null;
+let accountsCache = [];
 
 function getToken() {
   return localStorage.getItem(tokenKey);
@@ -124,6 +193,16 @@ function buildChannelsFromLegacy(config) {
     return channels;
   }
   const legacy = { ...config };
+  const take = (keys) => {
+    const cfg = {};
+    keys.forEach((key) => {
+      if (legacy[key] !== undefined && legacy[key] !== "") {
+        cfg[key] = String(legacy[key]);
+        delete legacy[key];
+      }
+    });
+    return cfg;
+  };
   if (legacy.CONSOLE && ["true", true, 1, "1"].includes(legacy.CONSOLE)) {
     channels.push({
       id: `notify_${Date.now()}_console`,
@@ -145,13 +224,14 @@ function buildChannelsFromLegacy(config) {
     delete legacy.PUSH_KEY;
   }
   if (legacy.TG_BOT_TOKEN && legacy.TG_USER_ID) {
-    const tgConfig = {
-      TG_BOT_TOKEN: String(legacy.TG_BOT_TOKEN),
-      TG_USER_ID: String(legacy.TG_USER_ID),
-    };
-    if (legacy.TG_API_HOST) {
-      tgConfig.TG_API_HOST = String(legacy.TG_API_HOST);
-    }
+    const tgConfig = take([
+      "TG_BOT_TOKEN",
+      "TG_USER_ID",
+      "TG_API_HOST",
+      "TG_PROXY_HOST",
+      "TG_PROXY_PORT",
+      "TG_PROXY_AUTH",
+    ]);
     channels.push({
       id: `notify_${Date.now()}_telegram`,
       name: "Telegram",
@@ -159,17 +239,17 @@ function buildChannelsFromLegacy(config) {
       enabled: true,
       config: tgConfig,
     });
-    delete legacy.TG_BOT_TOKEN;
-    delete legacy.TG_USER_ID;
-    delete legacy.TG_API_HOST;
   }
   if (legacy.PUSH_PLUS_TOKEN) {
-    const pushPlusConfig = {
-      PUSH_PLUS_TOKEN: String(legacy.PUSH_PLUS_TOKEN),
-    };
-    if (legacy.PUSH_PLUS_USER) {
-      pushPlusConfig.PUSH_PLUS_USER = String(legacy.PUSH_PLUS_USER);
-    }
+    const pushPlusConfig = take([
+      "PUSH_PLUS_TOKEN",
+      "PUSH_PLUS_USER",
+      "PUSH_PLUS_TEMPLATE",
+      "PUSH_PLUS_CHANNEL",
+      "PUSH_PLUS_WEBHOOK",
+      "PUSH_PLUS_CALLBACKURL",
+      "PUSH_PLUS_TO",
+    ]);
     channels.push({
       id: `notify_${Date.now()}_pushplus`,
       name: "PushPlus",
@@ -177,18 +257,232 @@ function buildChannelsFromLegacy(config) {
       enabled: true,
       config: pushPlusConfig,
     });
-    delete legacy.PUSH_PLUS_TOKEN;
-    delete legacy.PUSH_PLUS_USER;
   }
   if (legacy.BARK_PUSH) {
+    const barkConfig = take([
+      "BARK_PUSH",
+      "BARK_ARCHIVE",
+      "BARK_GROUP",
+      "BARK_SOUND",
+      "BARK_ICON",
+      "BARK_LEVEL",
+      "BARK_URL",
+    ]);
     channels.push({
       id: `notify_${Date.now()}_bark`,
       name: "Bark",
       type: "bark",
       enabled: true,
-      config: { BARK_PUSH: String(legacy.BARK_PUSH) },
+      config: barkConfig,
     });
-    delete legacy.BARK_PUSH;
+  }
+  if (legacy.DD_BOT_TOKEN && legacy.DD_BOT_SECRET) {
+    channels.push({
+      id: `notify_${Date.now()}_dingding`,
+      name: "钉钉机器人",
+      type: "dingding_bot",
+      enabled: true,
+      config: take(["DD_BOT_TOKEN", "DD_BOT_SECRET"]),
+    });
+  }
+  if (legacy.FSKEY) {
+    channels.push({
+      id: `notify_${Date.now()}_feishu`,
+      name: "飞书机器人",
+      type: "feishu_bot",
+      enabled: true,
+      config: take(["FSKEY", "FSSECRET"]),
+    });
+  }
+  if (legacy.GOBOT_URL && legacy.GOBOT_QQ) {
+    channels.push({
+      id: `notify_${Date.now()}_gobot`,
+      name: "Go-CQHTTP",
+      type: "go_cqhttp",
+      enabled: true,
+      config: take(["GOBOT_URL", "GOBOT_QQ", "GOBOT_TOKEN"]),
+    });
+  }
+  if (legacy.GOTIFY_URL && legacy.GOTIFY_TOKEN) {
+    channels.push({
+      id: `notify_${Date.now()}_gotify`,
+      name: "Gotify",
+      type: "gotify",
+      enabled: true,
+      config: take(["GOTIFY_URL", "GOTIFY_TOKEN", "GOTIFY_PRIORITY"]),
+    });
+  }
+  if (legacy.IGOT_PUSH_KEY) {
+    channels.push({
+      id: `notify_${Date.now()}_igot`,
+      name: "iGot",
+      type: "igot",
+      enabled: true,
+      config: take(["IGOT_PUSH_KEY"]),
+    });
+  }
+  if (legacy.DEER_KEY) {
+    channels.push({
+      id: `notify_${Date.now()}_pushdeer`,
+      name: "PushDeer",
+      type: "pushdeer",
+      enabled: true,
+      config: take(["DEER_KEY", "DEER_URL"]),
+    });
+  }
+  if (legacy.CHAT_URL && legacy.CHAT_TOKEN) {
+    channels.push({
+      id: `notify_${Date.now()}_chat`,
+      name: "群晖 Chat",
+      type: "chat",
+      enabled: true,
+      config: take(["CHAT_URL", "CHAT_TOKEN"]),
+    });
+  }
+  if (legacy.WE_PLUS_BOT_TOKEN) {
+    channels.push({
+      id: `notify_${Date.now()}_weplus`,
+      name: "微加机器人",
+      type: "weplus_bot",
+      enabled: true,
+      config: take([
+        "WE_PLUS_BOT_TOKEN",
+        "WE_PLUS_BOT_RECEIVER",
+        "WE_PLUS_BOT_VERSION",
+      ]),
+    });
+  }
+  if (legacy.QMSG_KEY && legacy.QMSG_TYPE) {
+    channels.push({
+      id: `notify_${Date.now()}_qmsg`,
+      name: "Qmsg 酱",
+      type: "qmsg_bot",
+      enabled: true,
+      config: take(["QMSG_KEY", "QMSG_TYPE"]),
+    });
+  }
+  if (legacy.QYWX_AM) {
+    channels.push({
+      id: `notify_${Date.now()}_wecom_app`,
+      name: "企业微信应用",
+      type: "wecom_app",
+      enabled: true,
+      config: take(["QYWX_AM", "QYWX_ORIGIN"]),
+    });
+  }
+  if (legacy.QYWX_KEY) {
+    channels.push({
+      id: `notify_${Date.now()}_wecom_bot`,
+      name: "企业微信机器人",
+      type: "wecom_bot",
+      enabled: true,
+      config: take(["QYWX_KEY", "QYWX_ORIGIN"]),
+    });
+  }
+  if (legacy.AIBOTK_KEY && legacy.AIBOTK_TYPE && legacy.AIBOTK_NAME) {
+    channels.push({
+      id: `notify_${Date.now()}_aibotk`,
+      name: "智能微秘书",
+      type: "aibotk",
+      enabled: true,
+      config: take(["AIBOTK_KEY", "AIBOTK_TYPE", "AIBOTK_NAME"]),
+    });
+  }
+  if (
+    legacy.SMTP_SERVER &&
+    legacy.SMTP_SSL &&
+    legacy.SMTP_EMAIL &&
+    legacy.SMTP_PASSWORD &&
+    legacy.SMTP_NAME
+  ) {
+    channels.push({
+      id: `notify_${Date.now()}_smtp`,
+      name: "SMTP 邮件",
+      type: "smtp",
+      enabled: true,
+      config: take([
+        "SMTP_SERVER",
+        "SMTP_SSL",
+        "SMTP_EMAIL",
+        "SMTP_PASSWORD",
+        "SMTP_NAME",
+      ]),
+    });
+  }
+  if (legacy.PUSHME_KEY) {
+    const cfg = take(["PUSHME_KEY", "PUSHME_URL"]);
+    if (legacy.date !== undefined && legacy.date !== "") {
+      cfg.date = String(legacy.date);
+      delete legacy.date;
+    }
+    if (legacy.type !== undefined && legacy.type !== "") {
+      cfg.type = String(legacy.type);
+      delete legacy.type;
+    }
+    channels.push({
+      id: `notify_${Date.now()}_pushme`,
+      name: "PushMe",
+      type: "pushme",
+      enabled: true,
+      config: cfg,
+    });
+  }
+  if (legacy.CHRONOCAT_URL && legacy.CHRONOCAT_QQ && legacy.CHRONOCAT_TOKEN) {
+    channels.push({
+      id: `notify_${Date.now()}_chronocat`,
+      name: "Chronocat",
+      type: "chronocat",
+      enabled: true,
+      config: take(["CHRONOCAT_URL", "CHRONOCAT_QQ", "CHRONOCAT_TOKEN"]),
+    });
+  }
+  if (legacy.WEBHOOK_URL && legacy.WEBHOOK_METHOD) {
+    channels.push({
+      id: `notify_${Date.now()}_webhook`,
+      name: "Webhook",
+      type: "custom_notify",
+      enabled: true,
+      config: take([
+        "WEBHOOK_URL",
+        "WEBHOOK_METHOD",
+        "WEBHOOK_CONTENT_TYPE",
+        "WEBHOOK_BODY",
+        "WEBHOOK_HEADERS",
+      ]),
+    });
+  }
+  if (legacy.NTFY_TOPIC) {
+    channels.push({
+      id: `notify_${Date.now()}_ntfy`,
+      name: "Ntfy",
+      type: "ntfy",
+      enabled: true,
+      config: take([
+        "NTFY_URL",
+        "NTFY_TOPIC",
+        "NTFY_PRIORITY",
+        "NTFY_TOKEN",
+        "NTFY_USERNAME",
+        "NTFY_PASSWORD",
+        "NTFY_ACTIONS",
+      ]),
+    });
+  }
+  if (
+    legacy.WXPUSHER_APP_TOKEN &&
+    (legacy.WXPUSHER_TOPIC_IDS || legacy.WXPUSHER_UIDS)
+  ) {
+    channels.push({
+      id: `notify_${Date.now()}_wxpusher`,
+      name: "WxPusher",
+      type: "wxpusher_bot",
+      enabled: true,
+      config: take([
+        "WXPUSHER_APP_TOKEN",
+        "WXPUSHER_TOPIC_IDS",
+        "WXPUSHER_UIDS",
+      ]),
+    });
   }
   const leftoverKeys = Object.keys(legacy);
   if (leftoverKeys.length) {
@@ -210,7 +504,25 @@ function buildNotifyTypeOptions() {
     { value: "telegram", label: "Telegram" },
     { value: "pushplus", label: "PushPlus" },
     { value: "bark", label: "Bark" },
+    { value: "dingding_bot", label: "钉钉机器人" },
+    { value: "feishu_bot", label: "飞书机器人" },
+    { value: "go_cqhttp", label: "Go-CQHTTP" },
+    { value: "gotify", label: "Gotify" },
+    { value: "igot", label: "iGot" },
+    { value: "pushdeer", label: "PushDeer" },
+    { value: "chat", label: "群晖 Chat" },
+    { value: "weplus_bot", label: "微加机器人" },
+    { value: "qmsg_bot", label: "Qmsg 酱" },
+    { value: "wecom_app", label: "企业微信应用" },
+    { value: "wecom_bot", label: "企业微信机器人" },
+    { value: "aibotk", label: "智能微秘书" },
+    { value: "smtp", label: "SMTP 邮件" },
+    { value: "pushme", label: "PushMe" },
+    { value: "chronocat", label: "Chronocat" },
+    { value: "ntfy", label: "Ntfy" },
+    { value: "wxpusher_bot", label: "WxPusher" },
     { value: "console", label: "控制台" },
+    { value: "custom_notify", label: "Webhook" },
     { value: "custom", label: "自定义 JSON" },
   ];
   notifyType.innerHTML = "";
@@ -227,7 +539,25 @@ const notifyTypeLabels = {
   telegram: "Telegram",
   pushplus: "PushPlus",
   bark: "Bark",
+  dingding_bot: "钉钉机器人",
+  feishu_bot: "飞书机器人",
+  go_cqhttp: "Go-CQHTTP",
+  gotify: "Gotify",
+  igot: "iGot",
+  pushdeer: "PushDeer",
+  chat: "群晖 Chat",
+  weplus_bot: "微加机器人",
+  qmsg_bot: "Qmsg 酱",
+  wecom_app: "企业微信应用",
+  wecom_bot: "企业微信机器人",
+  aibotk: "智能微秘书",
+  smtp: "SMTP 邮件",
+  pushme: "PushMe",
+  chronocat: "Chronocat",
+  ntfy: "Ntfy",
+  wxpusher_bot: "WxPusher",
   console: "控制台",
+  custom_notify: "Webhook",
   custom: "自定义 JSON",
 };
 
@@ -245,9 +575,77 @@ function resetNotifyForm() {
   if (notifyTgToken) notifyTgToken.value = "";
   if (notifyTgUser) notifyTgUser.value = "";
   if (notifyTgHost) notifyTgHost.value = "";
+  if (notifyTgProxyHost) notifyTgProxyHost.value = "";
+  if (notifyTgProxyPort) notifyTgProxyPort.value = "";
+  if (notifyTgProxyAuth) notifyTgProxyAuth.value = "";
   if (notifyPushPlusToken) notifyPushPlusToken.value = "";
   if (notifyPushPlusUser) notifyPushPlusUser.value = "";
+  if (notifyPushPlusTemplate) notifyPushPlusTemplate.value = "";
+  if (notifyPushPlusChannel) notifyPushPlusChannel.value = "";
+  if (notifyPushPlusWebhook) notifyPushPlusWebhook.value = "";
+  if (notifyPushPlusCallback) notifyPushPlusCallback.value = "";
+  if (notifyPushPlusTo) notifyPushPlusTo.value = "";
   if (notifyBarkPush) notifyBarkPush.value = "";
+  if (notifyBarkArchive) notifyBarkArchive.value = "";
+  if (notifyBarkGroup) notifyBarkGroup.value = "";
+  if (notifyBarkSound) notifyBarkSound.value = "";
+  if (notifyBarkIcon) notifyBarkIcon.value = "";
+  if (notifyBarkLevel) notifyBarkLevel.value = "";
+  if (notifyBarkUrl) notifyBarkUrl.value = "";
+  if (notifyDdToken) notifyDdToken.value = "";
+  if (notifyDdSecret) notifyDdSecret.value = "";
+  if (notifyFsKey) notifyFsKey.value = "";
+  if (notifyFsSecret) notifyFsSecret.value = "";
+  if (notifyGobotUrl) notifyGobotUrl.value = "";
+  if (notifyGobotQq) notifyGobotQq.value = "";
+  if (notifyGobotToken) notifyGobotToken.value = "";
+  if (notifyGotifyUrl) notifyGotifyUrl.value = "";
+  if (notifyGotifyToken) notifyGotifyToken.value = "";
+  if (notifyGotifyPriority) notifyGotifyPriority.value = "";
+  if (notifyIgotKey) notifyIgotKey.value = "";
+  if (notifyDeerKey) notifyDeerKey.value = "";
+  if (notifyDeerUrl) notifyDeerUrl.value = "";
+  if (notifyChatUrl) notifyChatUrl.value = "";
+  if (notifyChatToken) notifyChatToken.value = "";
+  if (notifyWeplusToken) notifyWeplusToken.value = "";
+  if (notifyWeplusReceiver) notifyWeplusReceiver.value = "";
+  if (notifyWeplusVersion) notifyWeplusVersion.value = "";
+  if (notifyQmsgKey) notifyQmsgKey.value = "";
+  if (notifyQmsgType) notifyQmsgType.value = "";
+  if (notifyWecomAm) notifyWecomAm.value = "";
+  if (notifyWecomOrigin) notifyWecomOrigin.value = "";
+  if (notifyWecomKey) notifyWecomKey.value = "";
+  if (notifyWecomBotOrigin) notifyWecomBotOrigin.value = "";
+  if (notifyAibotkKey) notifyAibotkKey.value = "";
+  if (notifyAibotkType) notifyAibotkType.value = "";
+  if (notifyAibotkName) notifyAibotkName.value = "";
+  if (notifySmtpServer) notifySmtpServer.value = "";
+  if (notifySmtpSsl) notifySmtpSsl.value = "";
+  if (notifySmtpEmail) notifySmtpEmail.value = "";
+  if (notifySmtpPassword) notifySmtpPassword.value = "";
+  if (notifySmtpName) notifySmtpName.value = "";
+  if (notifyPushmeKey) notifyPushmeKey.value = "";
+  if (notifyPushmeUrl) notifyPushmeUrl.value = "";
+  if (notifyPushmeDate) notifyPushmeDate.value = "";
+  if (notifyPushmeType) notifyPushmeType.value = "";
+  if (notifyChronocatUrl) notifyChronocatUrl.value = "";
+  if (notifyChronocatToken) notifyChronocatToken.value = "";
+  if (notifyChronocatQq) notifyChronocatQq.value = "";
+  if (notifyNtfyUrl) notifyNtfyUrl.value = "";
+  if (notifyNtfyTopic) notifyNtfyTopic.value = "";
+  if (notifyNtfyPriority) notifyNtfyPriority.value = "";
+  if (notifyNtfyToken) notifyNtfyToken.value = "";
+  if (notifyNtfyUsername) notifyNtfyUsername.value = "";
+  if (notifyNtfyPassword) notifyNtfyPassword.value = "";
+  if (notifyNtfyActions) notifyNtfyActions.value = "";
+  if (notifyWxpusherToken) notifyWxpusherToken.value = "";
+  if (notifyWxpusherTopic) notifyWxpusherTopic.value = "";
+  if (notifyWxpusherUids) notifyWxpusherUids.value = "";
+  if (notifyWebhookUrl) notifyWebhookUrl.value = "";
+  if (notifyWebhookMethod) notifyWebhookMethod.value = "";
+  if (notifyWebhookContentType) notifyWebhookContentType.value = "";
+  if (notifyWebhookHeaders) notifyWebhookHeaders.value = "";
+  if (notifyWebhookBody) notifyWebhookBody.value = "";
   if (notifyCustomConfig) notifyCustomConfig.value = "";
   toggleNotifyFields("serverj");
 }
@@ -259,12 +657,30 @@ function toggleNotifyFields(type) {
     "notify-fields-telegram",
     "notify-fields-pushplus",
     "notify-fields-bark",
+    "notify-fields-dingding_bot",
+    "notify-fields-feishu_bot",
+    "notify-fields-go_cqhttp",
+    "notify-fields-gotify",
+    "notify-fields-igot",
+    "notify-fields-pushdeer",
+    "notify-fields-chat",
+    "notify-fields-weplus_bot",
+    "notify-fields-qmsg_bot",
+    "notify-fields-wecom_app",
+    "notify-fields-wecom_bot",
+    "notify-fields-aibotk",
+    "notify-fields-smtp",
+    "notify-fields-pushme",
+    "notify-fields-chronocat",
+    "notify-fields-ntfy",
+    "notify-fields-wxpusher_bot",
+    "notify-fields-custom_notify",
     "notify-fields-custom",
   ];
   fieldIds.forEach((id) => {
     const block = document.getElementById(id);
     if (!block) return;
-    block.classList.toggle("hidden", !id.includes(type));
+    block.classList.toggle("hidden", id !== `notify-fields-${type}`);
   });
 }
 
@@ -276,7 +692,25 @@ function summarizeNotifyChannel(channel) {
   if (type === "pushplus")
     return `Token ${maskValue(cfg.PUSH_PLUS_TOKEN || "")}`;
   if (type === "bark") return (cfg.BARK_PUSH || "").replace(/https?:\/\//, "");
+  if (type === "dingding_bot") return maskValue(cfg.DD_BOT_TOKEN || "");
+  if (type === "feishu_bot") return maskValue(cfg.FSKEY || "");
+  if (type === "go_cqhttp") return cfg.GOBOT_QQ || "-";
+  if (type === "gotify") return cfg.GOTIFY_URL || "-";
+  if (type === "igot") return maskValue(cfg.IGOT_PUSH_KEY || "");
+  if (type === "pushdeer") return maskValue(cfg.DEER_KEY || "");
+  if (type === "chat") return cfg.CHAT_URL || "-";
+  if (type === "weplus_bot") return maskValue(cfg.WE_PLUS_BOT_TOKEN || "");
+  if (type === "qmsg_bot") return cfg.QMSG_TYPE || "-";
+  if (type === "wecom_app") return cfg.QYWX_AM || "-";
+  if (type === "wecom_bot") return maskValue(cfg.QYWX_KEY || "");
+  if (type === "aibotk") return `${cfg.AIBOTK_TYPE || "-"}:${cfg.AIBOTK_NAME || "-"}`;
+  if (type === "smtp") return cfg.SMTP_EMAIL || "-";
+  if (type === "pushme") return maskValue(cfg.PUSHME_KEY || "");
+  if (type === "chronocat") return cfg.CHRONOCAT_QQ || "-";
+  if (type === "ntfy") return cfg.NTFY_TOPIC || "-";
+  if (type === "wxpusher_bot") return cfg.WXPUSHER_TOPIC_IDS || cfg.WXPUSHER_UIDS || "-";
   if (type === "console") return "控制台输出";
+  if (type === "custom_notify") return cfg.WEBHOOK_URL || "Webhook";
   if (type === "custom") return "自定义 JSON";
   return "-";
 }
@@ -324,6 +758,12 @@ function buildNotifyConfigFromForm(type) {
     if (host) {
       config.TG_API_HOST = host;
     }
+    const proxyHost = notifyTgProxyHost.value.trim();
+    const proxyPort = notifyTgProxyPort.value.trim();
+    const proxyAuth = notifyTgProxyAuth.value.trim();
+    if (proxyHost) config.TG_PROXY_HOST = proxyHost;
+    if (proxyPort) config.TG_PROXY_PORT = proxyPort;
+    if (proxyAuth) config.TG_PROXY_AUTH = proxyAuth;
     return config;
   }
   if (type === "pushplus") {
@@ -336,6 +776,16 @@ function buildNotifyConfigFromForm(type) {
     if (user) {
       config.PUSH_PLUS_USER = user;
     }
+    const template = notifyPushPlusTemplate.value.trim();
+    if (template) config.PUSH_PLUS_TEMPLATE = template;
+    const channel = notifyPushPlusChannel.value.trim();
+    if (channel) config.PUSH_PLUS_CHANNEL = channel;
+    const webhook = notifyPushPlusWebhook.value.trim();
+    if (webhook) config.PUSH_PLUS_WEBHOOK = webhook;
+    const callback = notifyPushPlusCallback.value.trim();
+    if (callback) config.PUSH_PLUS_CALLBACKURL = callback;
+    const to = notifyPushPlusTo.value.trim();
+    if (to) config.PUSH_PLUS_TO = to;
     return config;
   }
   if (type === "bark") {
@@ -343,7 +793,232 @@ function buildNotifyConfigFromForm(type) {
     if (!push) {
       throw new Error("请填写 Bark 推送地址");
     }
-    return { BARK_PUSH: push };
+    const config = { BARK_PUSH: push };
+    const archive = notifyBarkArchive.value.trim();
+    if (archive) config.BARK_ARCHIVE = archive;
+    const group = notifyBarkGroup.value.trim();
+    if (group) config.BARK_GROUP = group;
+    const sound = notifyBarkSound.value.trim();
+    if (sound) config.BARK_SOUND = sound;
+    const icon = notifyBarkIcon.value.trim();
+    if (icon) config.BARK_ICON = icon;
+    const level = notifyBarkLevel.value.trim();
+    if (level) config.BARK_LEVEL = level;
+    const url = notifyBarkUrl.value.trim();
+    if (url) config.BARK_URL = url;
+    return config;
+  }
+  if (type === "dingding_bot") {
+    const token = notifyDdToken.value.trim();
+    const secret = notifyDdSecret.value.trim();
+    if (!token || !secret) {
+      throw new Error("钉钉机器人需要填写 Token 与 Secret");
+    }
+    return { DD_BOT_TOKEN: token, DD_BOT_SECRET: secret };
+  }
+  if (type === "feishu_bot") {
+    const key = notifyFsKey.value.trim();
+    if (!key) {
+      throw new Error("飞书机器人需要填写 Webhook Key");
+    }
+    const config = { FSKEY: key };
+    const secret = notifyFsSecret.value.trim();
+    if (secret) config.FSSECRET = secret;
+    return config;
+  }
+  if (type === "go_cqhttp") {
+    const url = notifyGobotUrl.value.trim();
+    const qq = notifyGobotQq.value.trim();
+    if (!url || !qq) {
+      throw new Error("Go-CQHTTP 需要填写地址与目标");
+    }
+    const config = { GOBOT_URL: url, GOBOT_QQ: qq };
+    const token = notifyGobotToken.value.trim();
+    if (token) config.GOBOT_TOKEN = token;
+    return config;
+  }
+  if (type === "gotify") {
+    const url = notifyGotifyUrl.value.trim();
+    const token = notifyGotifyToken.value.trim();
+    if (!url || !token) {
+      throw new Error("Gotify 需要填写地址与 Token");
+    }
+    const config = { GOTIFY_URL: url, GOTIFY_TOKEN: token };
+    const priority = notifyGotifyPriority.value.trim();
+    if (priority) config.GOTIFY_PRIORITY = priority;
+    return config;
+  }
+  if (type === "igot") {
+    const key = notifyIgotKey.value.trim();
+    if (!key) {
+      throw new Error("iGot 需要填写 PUSH_KEY");
+    }
+    return { IGOT_PUSH_KEY: key };
+  }
+  if (type === "pushdeer") {
+    const key = notifyDeerKey.value.trim();
+    if (!key) {
+      throw new Error("PushDeer 需要填写 Key");
+    }
+    const config = { DEER_KEY: key };
+    const url = notifyDeerUrl.value.trim();
+    if (url) config.DEER_URL = url;
+    return config;
+  }
+  if (type === "chat") {
+    const url = notifyChatUrl.value.trim();
+    const token = notifyChatToken.value.trim();
+    if (!url || !token) {
+      throw new Error("群晖 Chat 需要填写 URL 与 Token");
+    }
+    return { CHAT_URL: url, CHAT_TOKEN: token };
+  }
+  if (type === "weplus_bot") {
+    const token = notifyWeplusToken.value.trim();
+    if (!token) {
+      throw new Error("微加机器人需要填写 Token");
+    }
+    const config = { WE_PLUS_BOT_TOKEN: token };
+    const receiver = notifyWeplusReceiver.value.trim();
+    if (receiver) config.WE_PLUS_BOT_RECEIVER = receiver;
+    const version = notifyWeplusVersion.value.trim();
+    if (version) config.WE_PLUS_BOT_VERSION = version;
+    return config;
+  }
+  if (type === "qmsg_bot") {
+    const key = notifyQmsgKey.value.trim();
+    const qtype = notifyQmsgType.value.trim();
+    if (!key || !qtype) {
+      throw new Error("Qmsg 需要填写 Key 与 Type");
+    }
+    return { QMSG_KEY: key, QMSG_TYPE: qtype };
+  }
+  if (type === "wecom_app") {
+    const am = notifyWecomAm.value.trim();
+    if (!am) {
+      throw new Error("企业微信应用需要填写配置信息");
+    }
+    const config = { QYWX_AM: am };
+    const origin = notifyWecomOrigin.value.trim();
+    if (origin) config.QYWX_ORIGIN = origin;
+    return config;
+  }
+  if (type === "wecom_bot") {
+    const key = notifyWecomKey.value.trim();
+    if (!key) {
+      throw new Error("企业微信机器人需要填写 Key");
+    }
+    const config = { QYWX_KEY: key };
+    const origin = notifyWecomBotOrigin.value.trim();
+    if (origin) config.QYWX_ORIGIN = origin;
+    return config;
+  }
+  if (type === "aibotk") {
+    const key = notifyAibotkKey.value.trim();
+    const atype = notifyAibotkType.value.trim();
+    const name = notifyAibotkName.value.trim();
+    if (!key || !atype || !name) {
+      throw new Error("智能微秘书需要填写 Key、类型与目标名称");
+    }
+    return { AIBOTK_KEY: key, AIBOTK_TYPE: atype, AIBOTK_NAME: name };
+  }
+  if (type === "smtp") {
+    const server = notifySmtpServer.value.trim();
+    const ssl = notifySmtpSsl.value.trim();
+    const email = notifySmtpEmail.value.trim();
+    const password = notifySmtpPassword.value.trim();
+    const name = notifySmtpName.value.trim();
+    if (!server || !ssl || !email || !password || !name) {
+      throw new Error("SMTP 需要填写服务器、SSL、邮箱、密码与发件人");
+    }
+    return {
+      SMTP_SERVER: server,
+      SMTP_SSL: ssl,
+      SMTP_EMAIL: email,
+      SMTP_PASSWORD: password,
+      SMTP_NAME: name,
+    };
+  }
+  if (type === "pushme") {
+    const key = notifyPushmeKey.value.trim();
+    if (!key) {
+      throw new Error("PushMe 需要填写 Key");
+    }
+    const config = { PUSHME_KEY: key };
+    const url = notifyPushmeUrl.value.trim();
+    if (url) config.PUSHME_URL = url;
+    const date = notifyPushmeDate.value.trim();
+    if (date) config.date = date;
+    const ptype = notifyPushmeType.value.trim();
+    if (ptype) config.type = ptype;
+    return config;
+  }
+  if (type === "chronocat") {
+    const url = notifyChronocatUrl.value.trim();
+    const token = notifyChronocatToken.value.trim();
+    const qq = notifyChronocatQq.value.trim();
+    if (!url || !token || !qq) {
+      throw new Error("Chronocat 需要填写 URL、Token 与目标QQ");
+    }
+    return { CHRONOCAT_URL: url, CHRONOCAT_TOKEN: token, CHRONOCAT_QQ: qq };
+  }
+  if (type === "ntfy") {
+    const topic = notifyNtfyTopic.value.trim();
+    if (!topic) {
+      throw new Error("Ntfy 需要填写 Topic");
+    }
+    const url = notifyNtfyUrl.value.trim() || "https://ntfy.sh";
+    const config = { NTFY_URL: url, NTFY_TOPIC: topic };
+    const priority = notifyNtfyPriority.value.trim();
+    if (priority) config.NTFY_PRIORITY = priority;
+    const token = notifyNtfyToken.value.trim();
+    if (token) config.NTFY_TOKEN = token;
+    const username = notifyNtfyUsername.value.trim();
+    if (username) config.NTFY_USERNAME = username;
+    const password = notifyNtfyPassword.value.trim();
+    if (password) config.NTFY_PASSWORD = password;
+    const actions = notifyNtfyActions.value.trim();
+    if (actions) config.NTFY_ACTIONS = actions;
+    return config;
+  }
+  if (type === "wxpusher_bot") {
+    const token = notifyWxpusherToken.value.trim();
+    const topic = notifyWxpusherTopic.value.trim();
+    const uids = notifyWxpusherUids.value.trim();
+    if (!token) {
+      throw new Error("WxPusher 需要填写 AppToken");
+    }
+    if (!topic && !uids) {
+      throw new Error("WxPusher 需要填写 Topic IDs 或 UIDs");
+    }
+    const config = { WXPUSHER_APP_TOKEN: token };
+    if (topic) config.WXPUSHER_TOPIC_IDS = topic;
+    if (uids) config.WXPUSHER_UIDS = uids;
+    return config;
+  }
+  if (type === "custom_notify") {
+    const url = notifyWebhookUrl.value.trim();
+    const method = notifyWebhookMethod.value.trim();
+    if (!url || !method) {
+      throw new Error("Webhook 需要填写 URL 与方法");
+    }
+    const body = notifyWebhookBody.value.trim();
+    if (!url.includes("$title") && !body.includes("$title")) {
+      throw new Error("Webhook URL 或 Body 需包含 $title");
+    }
+    if (!url.includes("$content") && !body.includes("$content")) {
+      throw new Error("Webhook URL 或 Body 需包含 $content");
+    }
+    const config = {
+      WEBHOOK_URL: url,
+      WEBHOOK_METHOD: method,
+    };
+    const contentType = notifyWebhookContentType.value.trim();
+    if (contentType) config.WEBHOOK_CONTENT_TYPE = contentType;
+    const headers = notifyWebhookHeaders.value.trim();
+    if (headers) config.WEBHOOK_HEADERS = headers;
+    if (body) config.WEBHOOK_BODY = body;
+    return config;
   }
   if (type === "custom") {
     const raw = notifyCustomConfig.value.trim();
@@ -397,7 +1072,75 @@ function fillNotifyForm(channel) {
   notifyTgHost.value = cfg.TG_API_HOST || "";
   notifyPushPlusToken.value = cfg.PUSH_PLUS_TOKEN || "";
   notifyPushPlusUser.value = cfg.PUSH_PLUS_USER || "";
+  notifyPushPlusTemplate.value = cfg.PUSH_PLUS_TEMPLATE || "";
+  notifyPushPlusChannel.value = cfg.PUSH_PLUS_CHANNEL || "";
+  notifyPushPlusWebhook.value = cfg.PUSH_PLUS_WEBHOOK || "";
+  notifyPushPlusCallback.value = cfg.PUSH_PLUS_CALLBACKURL || "";
+  notifyPushPlusTo.value = cfg.PUSH_PLUS_TO || "";
   notifyBarkPush.value = cfg.BARK_PUSH || "";
+  notifyBarkArchive.value = cfg.BARK_ARCHIVE || "";
+  notifyBarkGroup.value = cfg.BARK_GROUP || "";
+  notifyBarkSound.value = cfg.BARK_SOUND || "";
+  notifyBarkIcon.value = cfg.BARK_ICON || "";
+  notifyBarkLevel.value = cfg.BARK_LEVEL || "";
+  notifyBarkUrl.value = cfg.BARK_URL || "";
+  notifyTgProxyHost.value = cfg.TG_PROXY_HOST || "";
+  notifyTgProxyPort.value = cfg.TG_PROXY_PORT || "";
+  notifyTgProxyAuth.value = cfg.TG_PROXY_AUTH || "";
+  notifyDdToken.value = cfg.DD_BOT_TOKEN || "";
+  notifyDdSecret.value = cfg.DD_BOT_SECRET || "";
+  notifyFsKey.value = cfg.FSKEY || "";
+  notifyFsSecret.value = cfg.FSSECRET || "";
+  notifyGobotUrl.value = cfg.GOBOT_URL || "";
+  notifyGobotQq.value = cfg.GOBOT_QQ || "";
+  notifyGobotToken.value = cfg.GOBOT_TOKEN || "";
+  notifyGotifyUrl.value = cfg.GOTIFY_URL || "";
+  notifyGotifyToken.value = cfg.GOTIFY_TOKEN || "";
+  notifyGotifyPriority.value = cfg.GOTIFY_PRIORITY || "";
+  notifyIgotKey.value = cfg.IGOT_PUSH_KEY || "";
+  notifyDeerKey.value = cfg.DEER_KEY || "";
+  notifyDeerUrl.value = cfg.DEER_URL || "";
+  notifyChatUrl.value = cfg.CHAT_URL || "";
+  notifyChatToken.value = cfg.CHAT_TOKEN || "";
+  notifyWeplusToken.value = cfg.WE_PLUS_BOT_TOKEN || "";
+  notifyWeplusReceiver.value = cfg.WE_PLUS_BOT_RECEIVER || "";
+  notifyWeplusVersion.value = cfg.WE_PLUS_BOT_VERSION || "";
+  notifyQmsgKey.value = cfg.QMSG_KEY || "";
+  notifyQmsgType.value = cfg.QMSG_TYPE || "";
+  notifyWecomAm.value = cfg.QYWX_AM || "";
+  notifyWecomOrigin.value = cfg.QYWX_ORIGIN || "";
+  notifyWecomKey.value = cfg.QYWX_KEY || "";
+  notifyWecomBotOrigin.value = cfg.QYWX_ORIGIN || "";
+  notifyAibotkKey.value = cfg.AIBOTK_KEY || "";
+  notifyAibotkType.value = cfg.AIBOTK_TYPE || "";
+  notifyAibotkName.value = cfg.AIBOTK_NAME || "";
+  notifySmtpServer.value = cfg.SMTP_SERVER || "";
+  notifySmtpSsl.value = cfg.SMTP_SSL || "";
+  notifySmtpEmail.value = cfg.SMTP_EMAIL || "";
+  notifySmtpPassword.value = cfg.SMTP_PASSWORD || "";
+  notifySmtpName.value = cfg.SMTP_NAME || "";
+  notifyPushmeKey.value = cfg.PUSHME_KEY || "";
+  notifyPushmeUrl.value = cfg.PUSHME_URL || "";
+  notifyPushmeDate.value = cfg.date || "";
+  notifyPushmeType.value = cfg.type || "";
+  notifyChronocatUrl.value = cfg.CHRONOCAT_URL || "";
+  notifyChronocatToken.value = cfg.CHRONOCAT_TOKEN || "";
+  notifyChronocatQq.value = cfg.CHRONOCAT_QQ || "";
+  notifyNtfyUrl.value = cfg.NTFY_URL || "";
+  notifyNtfyTopic.value = cfg.NTFY_TOPIC || "";
+  notifyNtfyPriority.value = cfg.NTFY_PRIORITY || "";
+  notifyNtfyToken.value = cfg.NTFY_TOKEN || "";
+  notifyNtfyUsername.value = cfg.NTFY_USERNAME || "";
+  notifyNtfyPassword.value = cfg.NTFY_PASSWORD || "";
+  notifyNtfyActions.value = cfg.NTFY_ACTIONS || "";
+  notifyWxpusherToken.value = cfg.WXPUSHER_APP_TOKEN || "";
+  notifyWxpusherTopic.value = cfg.WXPUSHER_TOPIC_IDS || "";
+  notifyWxpusherUids.value = cfg.WXPUSHER_UIDS || "";
+  notifyWebhookUrl.value = cfg.WEBHOOK_URL || "";
+  notifyWebhookMethod.value = cfg.WEBHOOK_METHOD || "";
+  notifyWebhookContentType.value = cfg.WEBHOOK_CONTENT_TYPE || "";
+  notifyWebhookHeaders.value = cfg.WEBHOOK_HEADERS || "";
+  notifyWebhookBody.value = cfg.WEBHOOK_BODY || "";
   notifyCustomConfig.value = JSON.stringify(cfg, null, 2);
   toggleNotifyFields(notifyType.value);
   setNotifyFormVisible(true);
@@ -688,9 +1431,10 @@ async function handleLogin() {
 
 async function loadAccounts() {
   const accounts = await apiFetch("/api/accounts");
+  accountsCache = Array.isArray(accounts) ? accounts : [];
   accountsBody.innerHTML = "";
   const rowMap = new Map();
-  accounts.forEach((account) => {
+  accountsCache.forEach((account) => {
     const row = document.createElement("tr");
     const canRenew = !!account.api_key;
     row.innerHTML = `
@@ -712,7 +1456,7 @@ async function loadAccounts() {
     rowMap.set(account.id, row);
   });
   await Promise.all(
-    accounts.map(async (account) => {
+    accountsCache.map(async (account) => {
       const row = rowMap.get(account.id);
       if (!row) return;
       const pointsCell = row.querySelector("[data-field='points']");
@@ -1044,8 +1788,12 @@ accountsBody.addEventListener("click", async (event) => {
   if (!action || !id) return;
   if (event.target.disabled) return;
   if (action === "edit") {
-    const accounts = await apiFetch("/api/accounts");
-    const account = accounts.find((item) => item.id === id);
+    let account = accountsCache.find((item) => String(item.id) === id);
+    if (!account) {
+      const accounts = await apiFetch("/api/accounts");
+      accountsCache = Array.isArray(accounts) ? accounts : [];
+      account = accountsCache.find((item) => String(item.id) === id);
+    }
     if (account) {
       fillForm(account);
     }
@@ -1135,6 +1883,21 @@ tabButtons.forEach((button) => {
   button.addEventListener("click", () => {
     switchTab(button.dataset.tab);
   });
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    stopLogPolling();
+    return;
+  }
+  if (logAutoRefresh && logAutoRefresh.checked && !tabLogs.classList.contains("hidden")) {
+    loadLogs();
+    startLogPolling();
+  }
+});
+
+window.addEventListener("beforeunload", () => {
+  stopLogPolling();
 });
 
 if (refreshLogsBtn) {
